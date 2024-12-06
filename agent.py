@@ -137,9 +137,9 @@ graph_builder.set_finish_point("provide_weather")
 app = graph_builder.compile()
 
 # 繪製圖表
-image_data = app.get_graph().draw_mermaid_png()  # 二進制資料
-with open('LangGraph_workflow.png', 'wb') as f:
-    f.write(image_data)
+    # image_data = app.get_graph().draw_mermaid_png()  # 二進制資料
+    # with open('LangGraph_workflow.png', 'wb') as f:
+    #     f.write(image_data)
 
 
 
