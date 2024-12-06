@@ -147,7 +147,7 @@ with open('LangGraph_workflow.png', 'wb') as f:
 
 
 test_inputs = [
-    "請問星巴克是啥？"
+    "我想去台北旅遊 想知道天氣"
 ]
 
 for query in test_inputs:
