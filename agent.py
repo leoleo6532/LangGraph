@@ -8,7 +8,6 @@ from langgraph.graph import START, END
 class AllState(TypedDict):
     messages: Sequence[str]
 
-
 # 使用 Ollama 初始化模型
 model = OllamaLLM(
     model="llama3.1",  # 替換為您需要的模型名稱，例如 'llama2-13b' 或其他 Ollama 支持的模型
@@ -18,6 +17,8 @@ model = OllamaLLM(
     max_retries=2     # 設置重試次數
 )
 
+
+# Agent 1 : 用於判斷使用者的問題是否跟天氣相關, 回答yes or no 利於流程進行
 prompt_str = """
 You are given one question. Determine if the question is weather-related.
 Only reply with "yes" or "no".
@@ -26,6 +27,10 @@ Question: {user_query}
 prompt = ChatPromptTemplate.from_template(prompt_str)
 classification_chain = prompt | model
 
+
+
+# Agent 2  : 用於判斷地理位置  只會輸出單一位置消除其他不必要訊息 例如：「台北」、「高雄」, 
+# 如果地理位置沒有在資料庫中回答「no_response」
 weather_prompt_str = """
 請從以下問題中提取台灣的城市名稱。
 請僅回覆城市名稱，例如：「台北」、「高雄」。
@@ -38,10 +43,10 @@ weather_prompt_str = """
 
 
 weather_prompt = ChatPromptTemplate.from_template(weather_prompt_str)
-
 weather_chain = weather_prompt | model
 
 
+# 輸入假設資料可以替換為真正天氣API
 def get_taiwan_weather(city: str) -> str:
     """查詢台灣特定城市的天氣狀況。"""
     weather_data = {
@@ -49,12 +54,14 @@ def get_taiwan_weather(city: str) -> str:
         "台中": "多雲，溫度26°C",
         "高雄": "陰天，溫度30°C",
     }
+    # 初始回覆都是暫時無資料, 除非輸入地點存在就會替換初始字串
     return f"{city}的天氣：{weather_data.get(city, '暫無資料')}"
 
 
 def classify_question(state: AllState):
     """判斷問題是否與天氣相關，並輸出中間結果。"""
     user_query = state["messages"][-1]
+    # 使用Ａgent 1 ： 判斷是否跟天氣相關 output : yes or no 
     response = classification_chain.invoke({"user_query": user_query})
     print(f"【Stage: classify_question】User Query: {user_query}")
     print(f"【Stage: classify_question】Classification Response: {response.strip()}")
@@ -63,6 +70,7 @@ def classify_question(state: AllState):
 
 def is_weather_related(state: AllState):
     """根據分類結果決定邏輯分支，並輸出中間結果。"""
+    # 取得 classify_question() 分類結果 yes or no, 如果是yes就extract_city,  no 就到結束節點
     classification_result = state["messages"][-1].strip().lower()
     next_step = "extract_city" if classification_result == "yes" else "end"
     print(f"【Stage: is_weather_related】Classification Result: {classification_result}")
@@ -81,8 +89,11 @@ def query_next_step(state: AllState):
 
 def extract_city(state: AllState):
     """從問題中提取城市名稱，並輸出中間結果。"""
+    # 經過流程處理後將user的問題萃取出地理位置
     user_query = state["messages"][0]
     print(f"【Stage: extract_city】User Query: {user_query}")
+
+    # 檢查地理位置是否在數據中有就輸出位置 沒有就回no_response
     response = weather_chain.invoke({"user_query": user_query}).strip()
     print(f"【Stage: extract_city】Extracted Response: {response}")
     if not response or response.lower() in ["", "no_response"]:
@@ -97,6 +108,7 @@ def provide_weather(state: AllState):
     if city_name == "no_response":
         response_message = "無法識別城市名稱，請提供有效的問題。"
     else:
+        # 經過判斷是否跟天氣有關 然後地名萃取  地名是否存在數據中 最後回覆
         response_message = get_taiwan_weather(city_name)
     print(f"【Stage: provide_weather】Weather Info: {response_message}")
     return {"messages": state["messages"] + [response_message]}
@@ -135,7 +147,7 @@ with open('LangGraph_workflow.png', 'wb') as f:
 
 
 test_inputs = [
-    "請問台北天氣如何？"
+    "請問星巴克是啥？"
 ]
 
 for query in test_inputs:
