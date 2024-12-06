@@ -3,7 +3,7 @@ from langgraph.graph import StateGraph
 from langchain_ollama.llms import OllamaLLM
 from langchain.prompts import ChatPromptTemplate
 from langgraph.graph import START, END
-
+from random_weather import  generate_weather_data
 
 class AllState(TypedDict):
     messages: Sequence[str]
@@ -49,11 +49,8 @@ weather_chain = weather_prompt | model
 # 輸入假設資料可以替換為真正天氣API
 def get_taiwan_weather(city: str) -> str:
     """查詢台灣特定城市的天氣狀況。"""
-    weather_data = {
-        "台北": "晴天，溫度28°C",
-        "台中": "多雲，溫度26°C",
-        "高雄": "陰天，溫度30°C",
-    }
+    weather_data = generate_weather_data()
+    print(weather_data)
     # 初始回覆都是暫時無資料, 除非輸入地點存在就會替換初始字串
     return f"{city}的天氣：{weather_data.get(city, '暫無資料')}"
 
